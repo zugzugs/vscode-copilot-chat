@@ -1,4 +1,4 @@
-name: Build and Release VSIX
+name: Build and Push VSIX
 
 on:
   push:
@@ -14,6 +14,8 @@ jobs:
       # Check out the repository
       - name: Checkout the code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Ensure full history for commit
 
       # Set up Node.js
       - name: Set up Node.js
@@ -37,16 +39,21 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Upload VSIX as artifact
-      - name: Upload VSIX Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: vscode-copilot-chat.vsix
-          path: *.vsix
+      # Create releases directory and move VSIX
+      - name: Move VSIX to releases folder
+        run: |
+          mkdir -p releases
+          mv *.vsix releases/
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
-      # Publish to Visual Studio Marketplace (optional, only on push to main)
-      - name: Publish to Marketplace
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.VSCE_PAT
-        run: vsce publish -p ${{ secrets.VSCE_PAT }}
+      # Commit and push VSIX to repository
+      - name: Commit and push VSIX
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git add releases/*.vsix
+          git commit -m "Add VSIX file to releases folder"
+          git push origin main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
