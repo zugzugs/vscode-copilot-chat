@@ -1,0 +1,52 @@
+name: Build and Release VSIX
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Check out the repository
+      - name: Checkout the code
+        uses: actions/checkout@v4
+
+      # Set up Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+
+      # Install dependencies
+      - name: Install dependencies
+        run: npm ci
+
+      # Compile TypeScript
+      - name: Compile TypeScript
+        run: npm run compile
+
+      # Package the VSIX file
+      - name: Package VSIX
+        run: |
+          npm install -g vsce
+          vsce package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Upload VSIX as artifact
+      - name: Upload VSIX Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vscode-copilot-chat.vsix
+          path: *.vsix
+
+      # Publish to Visual Studio Marketplace (optional, only on push to main)
+      - name: Publish to Marketplace
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.VSCE_PAT
+        run: vsce publish -p ${{ secrets.VSCE_PAT }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
